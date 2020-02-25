@@ -41,6 +41,7 @@ static int is_http_protocol(const char *p, int len, struct sslhcfg_protocols_ite
 static int is_tls_protocol(const char *p, int len, struct sslhcfg_protocols_item*);
 static int is_adb_protocol(const char *p, int len, struct sslhcfg_protocols_item*);
 static int is_socks5_protocol(const char *p, int len, struct sslhcfg_protocols_item*);
+static int is_mtproxy_protocol(const char *p, int len, struct sslhcfg_protocols_item*);
 static int is_true(const char *p, int len, struct sslhcfg_protocols_item* proto) { return 1; }
 
 /* Table of protocols that have a built-in probe
@@ -56,6 +57,7 @@ static struct protocol_probe_desc builtins[] = {
     { "ssl",        is_tls_protocol },
     { "adb",        is_adb_protocol },
     { "socks5",     is_socks5_protocol },
+    { "mtproxy",    is_mtproxy_protocol },
     { "anyprot",    is_true }
 };
 
@@ -299,6 +301,12 @@ static int is_socks5_protocol(const char *p_in, int len, struct sslhcfg_protocol
             return PROBE_NEXT;
     }
     return PROBE_MATCH;
+}
+
+static int is_mtproxy_protocol(const char *p, int len, struct sslhcfg_protocols_item* proto)
+{
+    fprintf(stderr, "mtproxy prober: len=%d; secrets_len=%zd", len, proto->secrets_len);
+    return PROBE_NEXT;
 }
 
 static int regex_probe(const char *p, int len, struct sslhcfg_protocols_item* proto)
