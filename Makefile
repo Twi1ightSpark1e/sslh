@@ -27,7 +27,8 @@ CC ?= gcc
 CFLAGS ?=-Wall -g $(CFLAGS_COV)
 
 LIBS=
-OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o argtable3.o mtproxy.o
+OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o argtable3.o
+ECHOSRV_OBJS=probe.o common.o tls.o
 
 CONDITIONAL_TARGETS=
 
@@ -68,7 +69,8 @@ endif
 
 ifneq ($(strip $(USEOPENSSL)),)
 	LIBS:=$(LIBS) -lcrypto
-	# OBJS+=mtproxy.o
+	OBJS+=mtproxy.o
+	ECHOSRV_OBJS+=mtproxy.o
 	CPPFLAGS+=-DOPENSSL
 endif
 
@@ -100,7 +102,7 @@ systemd-sslh-generator: systemd-sslh-generator.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o systemd-sslh-generator systemd-sslh-generator.o -lconfig
 
 echosrv: version.h $(OBJS) echosrv.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o probe.o common.o tls.o mtproxy.o $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o $(ECHOSRV_OBJS) $(LIBS)
 
 $(MAN): sslh.pod Makefile
 	pod2man --section=8 --release=$(VERSION) --center=" " sslh.pod | gzip -9 - > $(MAN)

@@ -5,10 +5,7 @@
 
 #include "common.h"
 #include "tls.h"
-
-#ifdef OPENSSL
 #include "mtproxy.h"
-#endif
 
 typedef enum {
     PROBE_NEXT,  /* Enough data, probe failed -- it's some other protocol */

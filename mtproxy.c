@@ -75,10 +75,6 @@ int parse_mtproxy_header(const struct MTProxyData *mtproxy_data, const char *dat
 }
 
 const unsigned char* compute_digests(const struct MTProxyData *mtproxy_data, const unsigned char *data) {
-#ifndef OPENSSL
-    return data;
-#else
-
 // HMAC SHA256 implementation taken from https://gist.github.com/SylvainCorlay/2997bd875d0527eb1ac008267876394b
 // Thank you, SylvainCorlay!
 
@@ -111,7 +107,6 @@ const unsigned char* compute_digests(const struct MTProxyData *mtproxy_data, con
 #endif
 
     return result;
-#endif // ifndef OPENSSL
 }
 
 int has_match(const char *random_list, size_t random_list_len, const char *random) {

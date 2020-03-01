@@ -308,7 +308,6 @@ static int is_mtproxy_protocol(const char *p, int len, struct sslhcfg_protocols_
 #ifdef OPENSSL
     switch (parse_mtproxy_header(proto->data, p, len)) {
     case MTPROXY_MATCH: return PROBE_MATCH;
-    case MTPROXY_UNMATCH:
     default: return PROBE_NEXT;
     }
 #endif
