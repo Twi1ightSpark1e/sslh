@@ -231,6 +231,32 @@ static void config_protocols()
                                   (const char**) cfg.protocols[i].alpn_protocols,
                                   cfg.protocols[i].alpn_protocols_len);
         }
+
+#ifdef OPENSSL
+        if (!strcmp(cfg.protocols[i].name, "mtproxy") && cfg.protocols[i].secrets_len) {
+            // buffer to store one byte string
+            char byte_str[3];
+            byte_str[2] = 0;
+
+            // allocate space for all secrets
+            char **parsed_secrets = (char**)malloc(cfg.protocols[i].secrets_len * sizeof(char*));
+            for (size_t j = 0; j < cfg.protocols[i].secrets_len; j++) {
+                parsed_secrets[j] = (char*)malloc(SECRET_LENGTH * sizeof(char));
+
+                // parsing one secret
+                for (size_t k = 0; k < SECRET_LENGTH * 2; k += 2) {
+                    // taking next two symbols = one byte
+                    memcpy(byte_str, cfg.protocols[i].secrets[j] + k, 2);
+                    // converting them into a byte
+                    parsed_secrets[j][k / 2] = (char)strtol(byte_str, NULL, 16);
+                }
+            }
+
+            cfg.protocols[i].data = (void*)new_mtproxy_data(
+                    (const char**)parsed_secrets,
+                    cfg.protocols[i].secrets_len);
+        }
+#endif
     }
 }
 
@@ -248,6 +274,20 @@ void config_sanity_check(struct sslhcfg_item* cfg) {
         exit(1);
     }
 #endif
+
+    for (size_t i = 0; i < cfg->protocols_len; i++) {
+        if (!strcmp(cfg->protocols[i].name, "mtproxy")) {
+#ifndef OPENSSL
+            fprintf(stderr, "Sslh compiled without openssl support, but there is mtproxy in the configuration. This combination is not supported.\n");
+            exit(3);
+#else
+            if (!cfg->protocols[i].secrets_len) {
+                fprintf(stderr, "At least one mtproxy entry in the configuration has no any secrets specified.\n");
+                exit(4);
+            }
+#endif
+        }
+    }
 }
 
 

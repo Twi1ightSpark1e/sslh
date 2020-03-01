@@ -8,6 +8,7 @@ USELIBWRAP?=	# Use libwrap?
 USELIBCAP=	# Use libcap?
 USESYSTEMD=     # Make use of systemd socket activation
 USELIBBSD?=     # Use libbsd (needed to update process name in `ps`)
+USEOPENSSL=	# Use openssl? Needed for mtproxy support
 COV_TEST= 	# Perform test coverage?
 PREFIX?=/usr
 BINDIR?=$(PREFIX)/sbin
@@ -26,7 +27,7 @@ CC ?= gcc
 CFLAGS ?=-Wall -g $(CFLAGS_COV)
 
 LIBS=
-OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o argtable3.o
+OBJS=sslh-conf.o common.o sslh-main.o probe.o tls.o argtable3.o mtproxy.o
 
 CONDITIONAL_TARGETS=
 
@@ -55,14 +56,20 @@ ifneq ($(strip $(USELIBCAP)),)
 endif
 
 ifneq ($(strip $(USESYSTEMD)),)
-        LIBS:=$(LIBS) -lsystemd
-        CPPFLAGS+=-DSYSTEMD
+	LIBS:=$(LIBS) -lsystemd
+	CPPFLAGS+=-DSYSTEMD
 	CONDITIONAL_TARGETS+=systemd-sslh-generator
 endif
 
 ifneq ($(strip $(USELIBBSD)),)
-        LIBS:=$(LIBS) -lbsd
-        CPPFLAGS+=-DLIBBSD
+	LIBS:=$(LIBS) -lbsd
+	CPPFLAGS+=-DLIBBSD
+endif
+
+ifneq ($(strip $(USEOPENSSL)),)
+	LIBS:=$(LIBS) -lcrypto
+	# OBJS+=mtproxy.o
+	CPPFLAGS+=-DOPENSSL
 endif
 
 
@@ -93,7 +100,7 @@ systemd-sslh-generator: systemd-sslh-generator.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o systemd-sslh-generator systemd-sslh-generator.o -lconfig
 
 echosrv: version.h $(OBJS) echosrv.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o probe.o common.o tls.o $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o echosrv echosrv.o probe.o common.o tls.o mtproxy.o $(LIBS)
 
 $(MAN): sslh.pod Makefile
 	pod2man --section=8 --release=$(VERSION) --center=" " sslh.pod | gzip -9 - > $(MAN)

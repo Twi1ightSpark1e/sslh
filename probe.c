@@ -305,7 +305,13 @@ static int is_socks5_protocol(const char *p_in, int len, struct sslhcfg_protocol
 
 static int is_mtproxy_protocol(const char *p, int len, struct sslhcfg_protocols_item* proto)
 {
-    fprintf(stderr, "mtproxy prober: len=%d; secrets_len=%zd", len, proto->secrets_len);
+#ifdef OPENSSL
+    switch (parse_mtproxy_header(proto->data, p, len)) {
+    case MTPROXY_MATCH: return PROBE_MATCH;
+    case MTPROXY_UNMATCH:
+    default: return PROBE_NEXT;
+    }
+#endif
     return PROBE_NEXT;
 }
 
