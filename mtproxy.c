@@ -15,8 +15,8 @@ struct MTProxyData {
 
 #define RANDOM_LENGTH 32
 
-const unsigned char* compute_digests(const struct MTProxyData *mtproxy_data, const unsigned char *data);
-int has_match(const char *random_list, size_t random_list_len, const char *random);
+HMAC_CTX* new_hmac();
+void delete_hmac(HMAC_CTX*);
 
 struct MTProxyData *new_mtproxy_data(const char **secrets, size_t secrets_len) {
     struct MTProxyData *mtproxy_data = malloc(sizeof(struct MTProxyData));
@@ -62,23 +62,41 @@ int parse_mtproxy_header(const struct MTProxyData *mtproxy_data, const char *dat
     memcpy(incoming_digest, digest_data + 11, RANDOM_LENGTH);
     memset(digest_data + 11, 0, 32);
 
-    // compute digests
-    const char *computed_digests = (const char*)compute_digests(mtproxy_data, (const unsigned char*)digest_data);
+    // compute then compare digests
+    unsigned char *computed_digest = (unsigned char*)malloc(RANDOM_LENGTH * sizeof(unsigned char));
+    int result = MTPROXY_UNMATCH;
+    HMAC_CTX *hmac = new_hmac();
 
-    // finding incoming digest in computed digests
-    const int result = has_match(computed_digests, mtproxy_data->secrets_len, incoming_digest);
-    if (result && cfg.verbose) {
-        fprintf(stderr, "Request has wrong 'Random' field.\n");
+    for (size_t i = 0; i < mtproxy_data->secrets_len; i++) {
+        // compute digest
+        HMAC_Init_ex(hmac, mtproxy_data->secrets[i], SECRET_LENGTH, EVP_sha256(), NULL);
+        HMAC_Update(hmac, (const unsigned char*)digest_data, TLS_HANDSHAKE_LENGTH);
+        HMAC_Final(hmac, computed_digest, NULL);
+
+        // compare digest
+        result = memcmp(incoming_digest, computed_digest, RANDOM_LENGTH - 4);
+        if (!result) {
+            result = MTPROXY_MATCH;
+            break;
+        }
     }
-    free((void*)computed_digests);
+
+    if (result && cfg.verbose) { // when failed
+        fprintf(stderr, "Request has wrong digest.\n");
+    }
+
+    // cleaning up
+    delete_hmac(hmac);
+    free((void*)computed_digest);
+    free((void*)digest_data);
+    free((void*)incoming_digest);
     return result;
 }
 
-const unsigned char* compute_digests(const struct MTProxyData *mtproxy_data, const unsigned char *data) {
 // HMAC SHA256 implementation taken from https://gist.github.com/SylvainCorlay/2997bd875d0527eb1ac008267876394b
 // Thank you, SylvainCorlay!
 
-    // initialize HMAC
+HMAC_CTX* new_hmac() {
     HMAC_CTX *hmac;
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -90,32 +108,15 @@ const unsigned char* compute_digests(const struct MTProxyData *mtproxy_data, con
     hmac = HMAC_CTX_new();
 #endif
 
-    // compute digest for every secret from configuration file
-    unsigned char *result = (unsigned char*)malloc(mtproxy_data->secrets_len * RANDOM_LENGTH * sizeof(unsigned char));
-    for (size_t i = 0; i < mtproxy_data->secrets_len; i++) {
-        HMAC_Init_ex(hmac, mtproxy_data->secrets[i], SECRET_LENGTH, EVP_sha256(), NULL);
-        HMAC_Update(hmac, data, TLS_HANDSHAKE_LENGTH);
-        HMAC_Final(hmac,result + i * RANDOM_LENGTH , NULL);
-    }
+    return hmac;
+}
 
-    // free up resources
+void delete_hmac(HMAC_CTX *hmac) {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     // OpenSSL 1.0.x
     HMAC_CTX_cleanup(hmac);
 #else
     HMAC_CTX_free(hmac);
 #endif
-
-    return result;
-}
-
-int has_match(const char *random_list, size_t random_list_len, const char *random) {
-    for (size_t i = 0; i < random_list_len; i++) {
-        const int result = memcmp(random_list + i * RANDOM_LENGTH, random, RANDOM_LENGTH - 4);
-        if (!result) {
-            return MTPROXY_MATCH;
-        }
-    }
-    return MTPROXY_UNMATCH;
 }
 
