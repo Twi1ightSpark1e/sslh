@@ -24,6 +24,16 @@ systemd support, transparent proxying,
 chroot, logging, IPv4 and IPv6, a fork-based and a
 select-based model, and more.
 
+### Twi1ightSpark1e's fork
+
+This fork brings in partial MTProto proxy support. To implement
+it, I used details given [here](https://habr.com/ru/post/461171/)
+(russian source), and some source code from
+[alexbers/mtprotoproxy](https://github.com/alexbers/mtprotoproxy).
+
+**!Currently, FakeTLS mode supported only!**
+
+
 Install
 =======
 
